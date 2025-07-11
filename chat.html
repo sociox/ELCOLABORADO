@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ELCOLABORADO</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded, remove, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    if (!localStorage.getItem("agentID")) {
+      window.location.href = "login.html";
+    }
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDbnf7_SqDWriYItfrUaIopp6fyRJ1Qop8",
+      authDomain: "skillx-cf77c.firebaseapp.com",
+      databaseURL: "https://skillx-cf77c-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "skillx-cf77c",
+      storageBucket: "skillx-cf77c.firebasestorage.app",
+      messagingSenderId: "1047716928795",
+      appId: "1:1047716928795:web:ab2b073bbbccc1dbcd87be"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const agentID = localStorage.getItem("agentID") || "Unknown Agent";
+    const chatBox = document.getElementById("chatBox");
+    const sendBtn = document.getElementById("sendBtn");
+    const msgInput = document.getElementById("msgInput");
+    const clearBtn = document.getElementById("clearBtn");
+    const receiver = document.getElementById("receiver");
+    const publicSwitch = document.getElementById("publicSwitch");
+    const memberList = document.getElementById("memberList");
+
+    const agentRef = ref(db, `agents/${agentID}`);
+    set(agentRef, { online: true, lastActive: Date.now(), avatar: localStorage.getItem("agentAvatar") || "https://i.ibb.co/SK4Z4Cx/avatar.png" });
+
+    window.addEventListener('beforeunload', () => {
+      update(agentRef, { online: false, lastActive: Date.now() });
+    });
+
+    sendBtn.onclick = () => {
+      const text = msgInput.value.trim();
+      const to = receiver.value;
+      const isPublic = publicSwitch.checked;
+      if (text) {
+        const targetRef = isPublic ? ref(db, `public`) : ref(db, `messages/${to}`);
+        push(targetRef, {
+          from: agentID,
+          text: text,
+          time: Date.now()
+        });
+        msgInput.value = "";
+      }
+    };
+
+    function listenToDMs() {
+      const myRef = ref(db, `messages/${agentID}`);
+      onChildAdded(myRef, snapshot => {
+        const data = snapshot.val();
+        const div = document.createElement("div");
+        div.className = "msg animated-glow";
+        div.innerHTML = `<strong>${data.from} → you:</strong> ${data.text}`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+
+    function listenToPublic() {
+      const publicRef = ref(db, "public");
+      onChildAdded(publicRef, snapshot => {
+        const data = snapshot.val();
+        const div = document.createElement("div");
+        div.className = "msg animated-glow";
+        div.innerHTML = `<strong>${data.from} [Public]:</strong> ${data.text}`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+
+    listenToDMs();
+    listenToPublic();
+
+    clearBtn.onclick = () => {
+      if (agentID === "Agent Head") {
+        remove(ref(db, "messages"));
+        remove(ref(db, "public"));
+        chatBox.innerHTML = "";
+      }
+    };
+
+    function loadAgents() {
+      get(child(ref(db), "agents")).then(snapshot => {
+        if (snapshot.exists()) {
+          const agents = snapshot.val();
+          receiver.innerHTML = "";
+          memberList.innerHTML = "";
+          for (const name in agents) {
+            const online = agents[name].online;
+            const avatar = agents[name].avatar || "https://i.ibb.co/SK4Z4Cx/avatar.png";
+
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            receiver.appendChild(option);
+
+            const li = document.createElement("li");
+            li.innerHTML = `
+              <img src="${avatar}" width="24" height="24" style="border-radius:50%; vertical-align:middle; margin-right:8px">
+              <span style="color:${online ? '#0f0' : '#f00'}; font-size:1rem">●</span>
+              <span style="margin-left:5px">${name}</span>
+            `;
+            li.style.marginBottom = "10px";
+            li.classList.add("animated-fadein");
+            memberList.appendChild(li);
+          }
+        }
+      });
+    }
+
+    loadAgents();
+    setInterval(loadAgents, 5000);
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Orbitron', monospace;
+      background: #000;
+      color: #00fff7;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      animation: backgroundScroll 30s linear infinite;
+    }
+    .topbar {
+      background: #111;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #0ff;
+      text-shadow: 0 0 10px #0ff;
+    }
+    .chatArea {
+      flex: 1;
+      display: flex;
+    }
+    .chatBox {
+      flex: 1;
+      overflow-y: auto;
+      border: 2px solid #0ff;
+      padding: 10px;
+      margin: 15px;
+      background: rgba(0, 255, 247, 0.05);
+    }
+    .sidebar {
+      width: 250px;
+      border-left: 2px solid #0ff;
+      padding: 15px;
+      background: #010101;
+    }
+    .msg {
+      padding: 6px;
+      margin-bottom: 5px;
+      background: rgba(0, 255, 247, 0.1);
+      border-left: 3px solid #0ff;
+      animation: flicker 1.5s infinite alternate;
+    }
+    .msg strong {
+      color: #f0f;
+    }
+    .inputArea {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: #000;
+    }
+    input[type="text"], select {
+      flex: 1;
+      padding: 10px;
+      background: #000;
+      border: 2px solid #0ff;
+      color: #0ff;
+    }
+    button {
+      padding: 10px 20px;
+      background: transparent;
+      border: 2px solid #0ff;
+      color: #0ff;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0ff;
+      color: #000;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    @keyframes flicker {
+      0% { opacity: 0.9; text-shadow: 0 0 5px #0ff; }
+      100% { opacity: 1; text-shadow: 0 0 20px #0ff, 0 0 10px #f0f; }
+    }
+    @keyframes backgroundScroll {
+      0% { background-position: 0 0; }
+      100% { background-position: 1000px 1000px; }
+    }
+    .animated-glow {
+      animation: flicker 2s infinite alternate;
+    }
+    .animated-fadein {
+      animation: fadeIn 1s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>ELCOLABORADO – PUBLIC + DM CHAT</div>
+    <div><button id="clearBtn">[ CLEAR CHAT ]</button></div>
+  </div>
+  <div class="chatArea">
+    <div class="chatBox" id="chatBox"></div>
+    <div class="sidebar">
+      <h4>AGENTS</h4>
+      <ul id="memberList"></ul>
+    </div>
+  </div>
+  <div class="inputArea">
+    <input type="checkbox" id="publicSwitch" checked> <label for="publicSwitch">Public</label>
+    <select id="receiver"></select>
+    <input type="text" id="msgInput" placeholder="Enter secret message...">
+    <button id="sendBtn">SEND</button>
+  </div>
+</body>
+</html>

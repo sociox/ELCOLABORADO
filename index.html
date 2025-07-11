@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ELCOLABORADO</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="cyberpunk-bg">
+  <div class="cyber-container">
+    <div class="scanlines"></div>
+    <h1 class="glitch-title" data-text="ELCOLABORADO">ELCOLABORADO</h1>
+    <div class="terminal">
+      <p class="typewriter">[ SYSTEM BOOTING... ]</p>
+      <p class="typewriter">Loading access protocols...</p>
+      <p class="typewriter">Verifying identity agent...</p>
+    </div>
+    <a href="password.html" class="mega-btn">[ INITIATE LOGIN SEQUENCE ]</a>
+  </div>
+ <script>
+  const loginButton = document.querySelector("button");
+  const inputField = document.querySelector("input");
+
+  loginButton.onclick = () => {
+    const agentID = inputField.value.trim();
+    if (agentID) {
+      localStorage.setItem("agentID", agentID);
+      window.location.href = "chat.html"; // or whatever your chat page is called
+    } else {
+      alert("Enter a valid Agent ID.");
+    }
+  };
+</script>
+
+
+</body>
+</html>

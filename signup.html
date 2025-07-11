@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Registration</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
+
+    body {
+      background: radial-gradient(circle at center, #000 30%, #111 100%);
+      font-family: 'Orbitron', monospace;
+      color: #00fff7;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      color: #00fff7;
+      text-shadow: 0 0 5px #0ff, 0 0 15px #f0f;
+      animation: glitch 1.6s infinite;
+      margin-bottom: 30px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 0 25px #0ff;
+    }
+
+    input[type="text"], input[type="file"] {
+      padding: 10px;
+      width: 250px;
+      border: 2px solid #00fff7;
+      background: transparent;
+      color: #00fff7;
+      font-size: 1rem;
+      text-align: center;
+      box-shadow: 0 0 10px #00fff7;
+      transition: all 0.2s ease;
+    }
+
+    input:focus {
+      box-shadow: 0 0 20px #00fff7, 0 0 25px #f0f;
+    }
+
+    button {
+      padding: 12px 30px;
+      font-size: 1rem;
+      background: transparent;
+      color: #00fff7;
+      border: 2px solid #00fff7;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00fff7;
+      transition: all 0.3s ease-in-out;
+    }
+
+    button:hover {
+      background: #00fff7;
+      color: #000;
+      box-shadow: 0 0 25px #0ff, 0 0 30px #f0f;
+    }
+
+    @keyframes glitch {
+      0% { transform: skew(0.5deg); text-shadow: 2px 0 #0ff, -2px 0 #f0f; }
+      20% { transform: skew(-0.5deg); text-shadow: -2px 0 #f0f, 2px 0 #0ff; }
+      40% { transform: skew(1deg); text-shadow: 2px 2px #f0f, -2px -2px #0ff; }
+      60% { transform: skew(-1deg); text-shadow: -2px 2px #0ff, 2px -2px #f0f; }
+      80% { transform: skew(0deg); text-shadow: 0 0 10px #0ff, 0 0 20px #f0f; }
+      100% { transform: skew(0.5deg); text-shadow: 2px -1px #f0f, -2px 1px #0ff; }
+    }
+  </style>
+</head>
+<body>
+  <h1>AGENT ID REGISTRATION</h1>
+  <form id="signupForm">
+    <input type="text" id="agentID" placeholder="Enter Your Agent Name" required />
+    <input type="file" id="agentAvatarFile" accept="image/*" required />
+    <button type="submit">[ SUBMIT IDENTITY ]</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('signupForm');
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const agentID = document.getElementById('agentID').value.trim();
+      const fileInput = document.getElementById('agentAvatarFile');
+      const file = fileInput.files[0];
+
+      if (agentID && file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          localStorage.setItem('agentID', agentID);
+          localStorage.setItem('agentAvatar', event.target.result);
+          window.location.href = "secret.html";
+        }
+        reader.readAsDataURL(file);
+      } else {
+        alert("Agent credentials incomplete.");
+      }
+    });
+  </script>
+</body>
+</html>
