@@ -105,16 +105,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
-      getDatabase,
-      ref,
-      push,
-      onChildAdded,
-      remove,
-      set,
-      get,
-      child,
-      update,
-      onValue
+      getDatabase, ref, push, onChildAdded, remove, set,
+      get, child, update, onValue
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
@@ -153,6 +145,7 @@
       update(agentRef, { online: false, lastActive: Date.now() });
     });
 
+    // Public chat listener
     onChildAdded(ref(db, "public"), (snapshot) => {
       const data = snapshot.val();
       const div = document.createElement("div");
@@ -162,6 +155,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
+    // Private messages listener
     onChildAdded(ref(db, `messages/${agentID}`), (snapshot) => {
       const data = snapshot.val();
       const div = document.createElement("div");
@@ -179,6 +173,7 @@
       const text = msgInput.value.trim();
       const to = receiver.value;
       const isPublic = publicSwitch.checked;
+
       if (!text) return;
 
       const msgDiv = document.createElement("div");
@@ -202,6 +197,7 @@
       update(agentRef, { typing: false });
     };
 
+    // Clear public + DM (admin only)
     clearBtn.onclick = () => {
       if (agentID === "Agent Head") {
         remove(ref(db, "public"));
@@ -237,6 +233,7 @@
       });
     }
 
+    // Typing indicator
     onValue(ref(db, "agents"), (snapshot) => {
       const data = snapshot.val();
       let foundTyping = false;
