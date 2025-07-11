@@ -104,7 +104,18 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, remove, set, get, child, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import {
+      getDatabase,
+      ref,
+      push,
+      onChildAdded,
+      remove,
+      set,
+      get,
+      child,
+      update,
+      onValue
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDbnf7_SqDWriYItfrUaIopp6fyRJ1Qop8",
@@ -132,13 +143,17 @@
     const typingIndicator = document.getElementById("typing");
 
     const agentRef = ref(db, `agents/${agentID}`);
-    set(agentRef, { online: true, lastActive: Date.now(), avatar: `https://robohash.org/${agentID}?set=set3` });
+    set(agentRef, {
+      online: true,
+      lastActive: Date.now(),
+      avatar: `https://robohash.org/${agentID}?set=set3`
+    });
 
     window.addEventListener("beforeunload", () => {
       update(agentRef, { online: false, lastActive: Date.now() });
     });
 
-    onChildAdded(ref(db, "public"), snapshot => {
+    onChildAdded(ref(db, "public"), (snapshot) => {
       const data = snapshot.val();
       const div = document.createElement("div");
       div.className = "msg";
@@ -147,7 +162,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    onChildAdded(ref(db, `messages/${agentID}`), snapshot => {
+    onChildAdded(ref(db, `messages/${agentID}`), (snapshot) => {
       const data = snapshot.val();
       const div = document.createElement("div");
       div.className = "msg";
@@ -196,7 +211,7 @@
     };
 
     function loadAgents() {
-      get(child(ref(db), "agents")).then(snapshot => {
+      get(child(ref(db), "agents")).then((snapshot) => {
         if (snapshot.exists()) {
           const agents = snapshot.val();
           receiver.innerHTML = "";
@@ -205,6 +220,7 @@
           for (const name in agents) {
             const agent = agents[name];
             const dot = agent.online ? "🟢" : "🔴";
+
             const option = document.createElement("option");
             option.value = name;
             option.textContent = name;
@@ -221,15 +237,17 @@
       });
     }
 
-    onValue(ref(db, "agents"), snapshot => {
+    onValue(ref(db, "agents"), (snapshot) => {
       const data = snapshot.val();
+      let foundTyping = false;
       for (const name in data) {
         if (data[name].typing && name !== agentID) {
           typingIndicator.innerText = `${name} is typing...`;
-          return;
+          foundTyping = true;
+          break;
         }
       }
-      typingIndicator.innerText = "";
+      if (!foundTyping) typingIndicator.innerText = "";
     });
 
     loadAgents();
