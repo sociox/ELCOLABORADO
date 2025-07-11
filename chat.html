@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>777 – Hacker Chat</title>
+  <title>ELCOLABORADO</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
     * { box-sizing: border-box; }
@@ -73,11 +73,14 @@
       color: #000;
     }
     ul { list-style: none; padding: 0; margin: 0; }
+    .typing { color: #0ff; font-size: 0.9em; margin-top: 5px; }
+    .agent-profile { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .agent-profile img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #0ff; }
   </style>
 </head>
 <body>
   <div class="topbar">
-    <div>777 SECURE OPS – HACKER CHAT</div>
+    <div>ELCOLABORADO CHAT</div>
     <button id="clearBtn">[ CLEAR CHAT ]</button>
   </div>
 
@@ -97,9 +100,11 @@
     <button id="sendBtn">SEND</button>
   </div>
 
+  <div class="typing" id="typing"></div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, remove, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded, remove, set, get, child, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDbnf7_SqDWriYItfrUaIopp6fyRJ1Qop8",
@@ -124,16 +129,15 @@
     const receiver = document.getElementById("receiver");
     const publicSwitch = document.getElementById("publicSwitch");
     const memberList = document.getElementById("memberList");
+    const typingIndicator = document.getElementById("typing");
 
-    // Save online status
     const agentRef = ref(db, `agents/${agentID}`);
-    set(agentRef, { online: true, lastActive: Date.now() });
+    set(agentRef, { online: true, lastActive: Date.now(), avatar: `https://robohash.org/${agentID}?set=set3` });
 
     window.addEventListener("beforeunload", () => {
       update(agentRef, { online: false, lastActive: Date.now() });
     });
 
-    // LISTEN PUBLIC
     onChildAdded(ref(db, "public"), snapshot => {
       const data = snapshot.val();
       const div = document.createElement("div");
@@ -143,7 +147,6 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // LISTEN DMs
     onChildAdded(ref(db, `messages/${agentID}`), snapshot => {
       const data = snapshot.val();
       const div = document.createElement("div");
@@ -153,36 +156,37 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // SEND BUTTON
-   sendBtn.onclick = () => {
-  const text = msgInput.value.trim();
-  const to = receiver.value;
-  const isPublic = publicSwitch.checked;
+    msgInput.addEventListener("input", () => {
+      update(agentRef, { typing: msgInput.value.length > 0 });
+    });
 
-  if (!text) return;
+    sendBtn.onclick = () => {
+      const text = msgInput.value.trim();
+      const to = receiver.value;
+      const isPublic = publicSwitch.checked;
+      if (!text) return;
 
-  const msgDiv = document.createElement("div");
-  msgDiv.className = "msg";
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "msg";
 
-  if (isPublic) {
-    msgDiv.innerHTML = `<strong>${agentID} [Public]:</strong> ${text}`;
-    push(ref(db, "public"), { from: agentID, text });
-  } else {
-    if (!to) {
-      alert("Select an agent to DM");
-      return;
-    }
-    msgDiv.innerHTML = `<strong>${agentID} → ${to}:</strong> ${text}`;
-    push(ref(db, `messages/${to}`), { from: agentID, text });
-  }
+      if (isPublic) {
+        msgDiv.innerHTML = `<strong>${agentID} [Public]:</strong> ${text}`;
+        push(ref(db, "public"), { from: agentID, text });
+      } else {
+        if (!to) {
+          alert("Select an agent to DM");
+          return;
+        }
+        msgDiv.innerHTML = `<strong>${agentID} → ${to}:</strong> ${text}`;
+        push(ref(db, `messages/${to}`), { from: agentID, text });
+      }
 
-  chatBox.appendChild(msgDiv);
-  chatBox.scrollTop = chatBox.scrollHeight;
-  msgInput.value = "";
-};
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      msgInput.value = "";
+      update(agentRef, { typing: false });
+    };
 
-
-    // CLEAR CHAT (Admin only)
     clearBtn.onclick = () => {
       if (agentID === "Agent Head") {
         remove(ref(db, "public"));
@@ -191,7 +195,6 @@
       }
     };
 
-    // LOAD AGENTS
     function loadAgents() {
       get(child(ref(db), "agents")).then(snapshot => {
         if (snapshot.exists()) {
@@ -200,23 +203,37 @@
           memberList.innerHTML = "";
 
           for (const name in agents) {
-            const isOnline = agents[name].online;
-            const dot = isOnline ? "🟢" : "🔴";
+            const agent = agents[name];
+            const dot = agent.online ? "🟢" : "🔴";
             const option = document.createElement("option");
             option.value = name;
             option.textContent = name;
             receiver.appendChild(option);
 
             const li = document.createElement("li");
-            li.textContent = `${dot} ${name}`;
+            li.innerHTML = `<div class="agent-profile">
+              <img src="${agent.avatar || `https://robohash.org/${name}?set=set3`}" />
+              <span>${dot} ${name}</span>
+            </div>`;
             memberList.appendChild(li);
           }
         }
       });
     }
 
+    onValue(ref(db, "agents"), snapshot => {
+      const data = snapshot.val();
+      for (const name in data) {
+        if (data[name].typing && name !== agentID) {
+          typingIndicator.innerText = `${name} is typing...`;
+          return;
+        }
+      }
+      typingIndicator.innerText = "";
+    });
+
     loadAgents();
-    setInterval(loadAgents, 5000); // refresh online list every 5s
+    setInterval(loadAgents, 5000);
   </script>
 </body>
 </html>
