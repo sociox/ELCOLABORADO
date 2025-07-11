@@ -103,10 +103,25 @@
   <div class="typing" id="typing"></div>
 
   <script type="module">
+    // ⛔ Prevent access if agent not registered
+    const agentID = localStorage.getItem("agentID");
+    const agentAvatar = localStorage.getItem("agentAvatar");
+    if (!agentID || !agentAvatar) {
+      window.location.href = "signup.html";
+    }
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
-      getDatabase, ref, push, onChildAdded, remove, set,
-      get, child, update, onValue
+      getDatabase,
+      ref,
+      push,
+      onChildAdded,
+      remove,
+      set,
+      get,
+      child,
+      update,
+      onValue
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
@@ -122,9 +137,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const agentID = localStorage.getItem("agentID") || prompt("Enter your Agent ID");
-    localStorage.setItem("agentID", agentID);
-
     const chatBox = document.getElementById("chatBox");
     const sendBtn = document.getElementById("sendBtn");
     const msgInput = document.getElementById("msgInput");
@@ -138,14 +150,14 @@
     set(agentRef, {
       online: true,
       lastActive: Date.now(),
-      avatar: `https://robohash.org/${agentID}?set=set3`
+      avatar: agentAvatar
     });
 
     window.addEventListener("beforeunload", () => {
       update(agentRef, { online: false, lastActive: Date.now() });
     });
 
-    // Public chat listener
+    // Show public chat messages
     onChildAdded(ref(db, "public"), (snapshot) => {
       const data = snapshot.val();
       const div = document.createElement("div");
@@ -155,7 +167,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // Private messages listener
+    // Show direct messages sent to this agent
     onChildAdded(ref(db, `messages/${agentID}`), (snapshot) => {
       const data = snapshot.val();
       const div = document.createElement("div");
@@ -165,15 +177,16 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
+    // Typing indicator for other agents
     msgInput.addEventListener("input", () => {
       update(agentRef, { typing: msgInput.value.length > 0 });
     });
 
+    // Send message
     sendBtn.onclick = () => {
       const text = msgInput.value.trim();
       const to = receiver.value;
       const isPublic = publicSwitch.checked;
-
       if (!text) return;
 
       const msgDiv = document.createElement("div");
@@ -197,7 +210,7 @@
       update(agentRef, { typing: false });
     };
 
-    // Clear public + DM (admin only)
+    // Only admin can clear chat
     clearBtn.onclick = () => {
       if (agentID === "Agent Head") {
         remove(ref(db, "public"));
@@ -206,8 +219,9 @@
       }
     };
 
+    // Load agents into sidebar and DM dropdown
     function loadAgents() {
-      get(child(ref(db), "agents")).then((snapshot) => {
+      get(child(ref(db), "agents")).then(snapshot => {
         if (snapshot.exists()) {
           const agents = snapshot.val();
           receiver.innerHTML = "";
@@ -217,14 +231,16 @@
             const agent = agents[name];
             const dot = agent.online ? "🟢" : "🔴";
 
-            const option = document.createElement("option");
-            option.value = name;
-            option.textContent = name;
-            receiver.appendChild(option);
+            if (name !== agentID) {
+              const option = document.createElement("option");
+              option.value = name;
+              option.textContent = name;
+              receiver.appendChild(option);
+            }
 
             const li = document.createElement("li");
             li.innerHTML = `<div class="agent-profile">
-              <img src="${agent.avatar || `https://robohash.org/${name}?set=set3`}" />
+              <img src="${agent.avatar}" />
               <span>${dot} ${name}</span>
             </div>`;
             memberList.appendChild(li);
@@ -233,7 +249,7 @@
       });
     }
 
-    // Typing indicator
+    // Show who is typing
     onValue(ref(db, "agents"), (snapshot) => {
       const data = snapshot.val();
       let foundTyping = false;
