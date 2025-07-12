@@ -103,7 +103,7 @@
   <div class="typing" id="typing"></div>
 
   <script type="module">
-    // ⛔ Prevent access if agent not registered
+    // Prevent access if agent not registered
     const agentID = localStorage.getItem("agentID");
     const agentAvatar = localStorage.getItem("agentAvatar");
     if (!agentID || !agentAvatar) {
@@ -121,7 +121,8 @@
       get,
       child,
       update,
-      onValue
+      onValue,
+      onDisconnect
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
@@ -151,6 +152,12 @@
       online: true,
       lastActive: Date.now(),
       avatar: agentAvatar
+    }).catch(error => {
+      console.error("Error setting agent status:", error);
+    });
+
+    onDisconnect(agentRef).update({ online: false }).catch(error => {
+      console.error("Error setting onDisconnect:", error);
     });
 
     window.addEventListener("beforeunload", () => {
@@ -160,26 +167,33 @@
     // Show public chat messages
     onChildAdded(ref(db, "public"), (snapshot) => {
       const data = snapshot.val();
+      console.log("New public message:", data);
       const div = document.createElement("div");
       div.className = "msg";
       div.innerHTML = `<strong>${data.from} [Public]:</strong> ${data.text}`;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
+    }, error => {
+      console.error("Error in public messages listener:", error);
     });
 
     // Show direct messages sent to this agent
     onChildAdded(ref(db, `messages/${agentID}`), (snapshot) => {
       const data = snapshot.val();
+      console.log("New direct message:", data);
       const div = document.createElement("div");
       div.className = "msg";
       div.innerHTML = `<strong>${data.from} → you:</strong> ${data.text}`;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
+    }, error => {
+      console.error("Error in direct messages listener:", error);
     });
 
     // Typing indicator for other agents
     msgInput.addEventListener("input", () => {
-      update(agentRef, { typing: msgInput.value.length > 0 });
+      update(agentRef, { typing: msgInput.value.length > 0 })
+        .catch(error => console.error("Error updating typing status:", error));
     });
 
     // Send message
@@ -193,19 +207,27 @@
       msgDiv.className = "msg";
 
       if (isPublic) {
-        msgDiv.innerHTML = `<strong>${agentID} [Public]:</strong> ${text}`;
-        push(ref(db, "public"), { from: agentID, text });
+        push(ref(db, "public"), { from: agentID, text })
+          .then(() => {
+            msgDiv.innerHTML = `<strong>${agentID} [Public]:</strong> ${text}`;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+          })
+          .catch(error => console.error("Error sending public message:", error));
       } else {
         if (!to) {
           alert("Select an agent to DM");
           return;
         }
-        msgDiv.innerHTML = `<strong>${agentID} → ${to}:</strong> ${text}`;
-        push(ref(db, `messages/${to}`), { from: agentID, text });
+        push(ref(db, `messages/${to}`), { from: agentID, text })
+          .then(() => {
+            msgDiv.innerHTML = `<strong>${agentID} → ${to}:</strong> ${text}`;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+          })
+          .catch(error => console.error("Error sending direct message:", error));
       }
 
-      chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
       msgInput.value = "";
       update(agentRef, { typing: false });
     };
@@ -213,41 +235,45 @@
     // Only admin can clear chat
     clearBtn.onclick = () => {
       if (agentID === "Agent Head") {
-        remove(ref(db, "public"));
-        remove(ref(db, "messages"));
-        chatBox.innerHTML = "";
+        Promise.all([
+          remove(ref(db, "public")),
+          remove(ref(db, "messages"))
+        ])
+          .then(() => {
+            chatBox.innerHTML = "";
+          })
+          .catch(error => console.error("Error clearing chat:", error));
       }
     };
 
-    // Load agents into sidebar and DM dropdown
-    function loadAgents() {
-      get(child(ref(db), "agents")).then(snapshot => {
-        if (snapshot.exists()) {
-          const agents = snapshot.val();
-          receiver.innerHTML = "";
-          memberList.innerHTML = "";
+    // Load agents into sidebar and DM dropdown in real-time
+    onValue(ref(db, "agents"), (snapshot) => {
+      console.log("Agents updated:", snapshot.val());
+      const agents = snapshot.val();
+      receiver.innerHTML = "";
+      memberList.innerHTML = "";
 
-          for (const name in agents) {
-            const agent = agents[name];
-            const dot = agent.online ? "🟢" : "🔴";
+      for (const name in agents) {
+        const agent = agents[name];
+        const dot = agent.online ? "🟢" : "🔴";
 
-            if (name !== agentID) {
-              const option = document.createElement("option");
-              option.value = name;
-              option.textContent = name;
-              receiver.appendChild(option);
-            }
-
-            const li = document.createElement("li");
-            li.innerHTML = `<div class="agent-profile">
-              <img src="${agent.avatar}" />
-              <span>${dot} ${name}</span>
-            </div>`;
-            memberList.appendChild(li);
-          }
+        if (name !== agentID) {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          receiver.appendChild(option);
         }
-      });
-    }
+
+        const li = document.createElement("li");
+        li.innerHTML = `<div class="agent-profile">
+          <img src="${agent.avatar}" />
+          <span>${dot} ${name}</span>
+        </div>`;
+        memberList.appendChild(li);
+      }
+    }, error => {
+      console.error("Error in agents listener:", error);
+    });
 
     // Show who is typing
     onValue(ref(db, "agents"), (snapshot) => {
@@ -261,10 +287,9 @@
         }
       }
       if (!foundTyping) typingIndicator.innerText = "";
+    }, error => {
+      console.error("Error in typing listener:", error);
     });
-
-    loadAgents();
-    setInterval(loadAgents, 5000);
   </script>
 </body>
 </html>
