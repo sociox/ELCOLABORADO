@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>ELCOLABORADO</title>
+  <meta charset="UTF-8">
+  <title>Secure Chat</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
-    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: 'Orbitron', monospace;
@@ -46,8 +45,11 @@
       padding: 6px;
       background: rgba(0, 255, 247, 0.1);
       border-left: 3px solid #0ff;
+      word-wrap: break-word;
     }
-    .msg strong { color: #f0f; }
+    .msg strong {
+      color: #f0f;
+    }
     .inputArea {
       display: flex;
       gap: 10px;
@@ -72,10 +74,28 @@
       background: #0ff;
       color: #000;
     }
-    ul { list-style: none; padding: 0; margin: 0; }
-    .typing { color: #0ff; font-size: 0.9em; margin-top: 5px; }
-    .agent-profile { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .agent-profile img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #0ff; }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .typing {
+      color: #0ff;
+      font-size: 0.9em;
+      margin-top: 5px;
+    }
+    .agent-profile {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .agent-profile img {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid #0ff;
+    }
   </style>
 </head>
 <body>
@@ -103,14 +123,17 @@
   <div class="typing" id="typing"></div>
 
   <script type="module">
-    const agentID = localStorage.getItem("agentID");
-    const agentAvatar = localStorage.getItem("agentAvatar");
-    if (!agentID || !agentAvatar) window.location.href = "signup.html";
-
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
-      getDatabase, ref, push, onChildAdded, remove,
-      set, update, onValue, onDisconnect
+      getDatabase,
+      ref,
+      set,
+      update,
+      onDisconnect,
+      onValue,
+      push,
+      onChildAdded,
+      remove
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
     const firebaseConfig = {
@@ -126,6 +149,13 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    const agentID = localStorage.getItem("agentID");
+    const agentAvatar = localStorage.getItem("agentAvatar");
+
+    if (!agentID || !agentAvatar) {
+      window.location.href = "signup.html";
+    }
+
     const chatBox = document.getElementById("chatBox");
     const sendBtn = document.getElementById("sendBtn");
     const msgInput = document.getElementById("msgInput");
@@ -140,7 +170,8 @@
       online: true,
       lastActive: Date.now(),
       avatar: agentAvatar,
-      typing: false
+      typing: false,
+      name: agentID
     });
     onDisconnect(agentRef).update({ online: false });
 
@@ -158,18 +189,16 @@
       const isPublic = publicSwitch.checked;
       if (!text) return;
 
+      const msg = { from: agentID, text };
+
       if (isPublic) {
-        push(ref(db, "public"), { from: agentID, text });
+        push(ref(db, "public"), msg);
       } else {
         if (!to) return alert("Select an agent to DM");
-        push(ref(db, `messages/${to}`), { from: agentID, text });
+        push(ref(db, `messages/${to}`), msg);
+        push(ref(db, `messages/${agentID}`), msg); // mirror to sender's inbox
       }
 
-      const msgDiv = document.createElement("div");
-      msgDiv.className = "msg";
-      msgDiv.innerHTML = `<strong>${agentID}${isPublic ? " [Public]" : ` → ${to}`}:</strong> ${text}`;
-      chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
       msgInput.value = "";
       update(agentRef, { typing: false });
     };
@@ -200,41 +229,52 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    onValue(ref(db, "agents"), (snapshot) => {
-      const agents = snapshot.val() || {};
-      receiver.innerHTML = "";
-      memberList.innerHTML = "";
+onValue(ref(db, "agents"), (snapshot) => {
+  const agents = snapshot.val() || {};
+  receiver.innerHTML = "";
+  memberList.innerHTML = "";
 
-      for (const name in agents) {
-        const agent = agents[name];
-        const dot = agent.online ? "🟢" : "🔴";
+  let anyoneTyping = false;
 
-        if (name !== agentID) {
-          const option = document.createElement("option");
-          option.value = name;
-          option.textContent = name;
-          receiver.appendChild(option);
-        }
+  for (const name in agents) {
+    const agent = agents[name];
+    if (!agent) continue;
 
-        const li = document.createElement("li");
-        li.innerHTML = `<div class="agent-profile">
-          <img src="${agent.avatar}" />
-          <span>${dot} ${name}</span>
-        </div>`;
-        memberList.appendChild(li);
-      }
-    });
+    const dot = agent.online ? "🟢" : "🔴";
+    const agentName = agent.name || name;
+    const avatar = agent.avatar || "https://via.placeholder.com/28";
 
-    onValue(ref(db, "agents"), (snapshot) => {
-      const data = snapshot.val();
-      typingIndicator.innerText = "";
-      for (const name in data) {
-        if (data[name].typing && name !== agentID) {
-          typingIndicator.innerText = `${name} is typing...`;
-          break;
-        }
-      }
-    });
+    // 👇 DM dropdown
+    if (name !== agentID) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = agentName;
+      receiver.appendChild(option);
+    }
+
+    // 👇 Sidebar profile
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <div class="agent-profile">
+        <img src="${avatar}" alt="agent avatar" />
+        <span>${dot} ${agentName}</span>
+      </div>
+    `;
+    memberList.appendChild(li);
+
+    // 👇 Typing indicator check
+    if (agent.typing && name !== agentID && !anyoneTyping) {
+      typingIndicator.innerText = `${agentName} is typing...`;
+      anyoneTyping = true;
+    }
+  }
+
+  // If no one is typing
+  if (!anyoneTyping) {
+    typingIndicator.innerText = "";
+  }
+});
+
   </script>
 </body>
 </html>

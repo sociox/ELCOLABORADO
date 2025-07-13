@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Agent Registration</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
@@ -20,7 +20,6 @@
 
     h1 {
       font-size: 2.2rem;
-      color: #00fff7;
       text-shadow: 0 0 5px #0ff, 0 0 15px #f0f;
       animation: glitch 1.6s infinite;
       margin-bottom: 30px;
@@ -46,11 +45,6 @@
       font-size: 1rem;
       text-align: center;
       box-shadow: 0 0 10px #00fff7;
-      transition: all 0.2s ease;
-    }
-
-    input:focus {
-      box-shadow: 0 0 20px #00fff7, 0 0 25px #f0f;
     }
 
     button {
@@ -61,7 +55,6 @@
       border: 2px solid #00fff7;
       cursor: pointer;
       box-shadow: 0 0 15px #00fff7;
-      transition: all 0.3s ease-in-out;
     }
 
     button:hover {
@@ -88,29 +81,64 @@
     <button type="submit">[ SUBMIT IDENTITY ]</button>
   </form>
 
-  <script>
-    const form = document.getElementById('signupForm');
+  <br />
+  <button onclick="localStorage.clear(); location.reload();">Clear Cache</button>
 
-    form.addEventListener('submit', function (e) {
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDbnf7_SqDWriYItfrUaIopp6fyRJ1Qop8",
+      authDomain: "skillx-cf77c.firebaseapp.com",
+      databaseURL: "https://skillx-cf77c-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "skillx-cf77c",
+      storageBucket: "skillx-cf77c.appspot.com",
+      messagingSenderId: "1047716928795",
+      appId: "1:1047716928795:web:ab2b073bbbccc1dbcd87be"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const form = document.getElementById("signupForm");
+
+    form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const agentID = document.getElementById('agentID').value.trim();
-      const fileInput = document.getElementById('agentAvatarFile');
-      const file = fileInput.files[0];
 
-      if (agentID && file) {
-        const reader = new FileReader();
-        reader.onload = function (event) {
-          localStorage.setItem('agentID', agentID);
-          localStorage.setItem('agentAvatar', event.target.result);
+      const agentID = document.getElementById("agentID").value.trim();
+      const file = document.getElementById("agentAvatarFile").files[0];
+
+      if (!agentID || !file) return alert("Please enter all fields");
+
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        const avatar = event.target.result;
+
+        localStorage.setItem("agentID", agentID);
+        localStorage.setItem("agentAvatar", avatar);
+
+        const agentRef = ref(db, `agents/${agentID}`);
+
+        set(agentRef, {
+          name: agentID,
+          avatar: avatar,
+          online: true,
+          typing: false,
+          lastActive: Date.now()
+        })
+        .then(() => {
           window.location.href = "secret.html";
-        }
-        reader.readAsDataURL(file);
-      } else {
-        alert("Agent credentials incomplete.");
-      }
-    });
-  </script><br>
-  <button onclick="localStorage.clear(); window.location.href='signup.html';">Logout</button>
+        })
+        .catch((error) => {
+          console.error("Error writing to DB:", error);
+          alert("Registration failed. Try again.");
+        });
+      };
 
+      reader.readAsDataURL(file);
+    });
+  </script>
 </body>
 </html>
