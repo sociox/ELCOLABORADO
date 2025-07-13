@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Agent Registration</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap');
@@ -74,6 +74,17 @@
   </style>
 </head>
 <body>
+
+  <script>
+    // ✅ Check if already logged in
+    const agentID = localStorage.getItem("agentID");
+    const avatar = localStorage.getItem("agentAvatar");
+
+    if (agentID && avatar) {
+      window.location.href = "secret.html";  // redirect to chat if already logged in
+    }
+  </script>
+
   <h1>AGENT ID REGISTRATION</h1>
   <form id="signupForm">
     <input type="text" id="agentID" placeholder="Enter Your Agent Name" required />
@@ -81,7 +92,7 @@
     <button type="submit">[ SUBMIT IDENTITY ]</button>
   </form>
 
-  <br />
+  <br>
   <button onclick="localStorage.clear(); location.reload();">Clear Cache</button>
 
   <script type="module">
@@ -101,42 +112,29 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const form = document.getElementById("signupForm");
-
-    form.addEventListener("submit", (e) => {
+    document.getElementById("signupForm").addEventListener("submit", (e) => {
       e.preventDefault();
-
       const agentID = document.getElementById("agentID").value.trim();
       const file = document.getElementById("agentAvatarFile").files[0];
-
-      if (!agentID || !file) return alert("Please enter all fields");
+      if (!agentID || !file) return alert("Enter all fields");
 
       const reader = new FileReader();
-
       reader.onload = function (event) {
         const avatar = event.target.result;
-
         localStorage.setItem("agentID", agentID);
         localStorage.setItem("agentAvatar", avatar);
 
         const agentRef = ref(db, `agents/${agentID}`);
-
         set(agentRef, {
           name: agentID,
-          avatar: avatar,
           online: true,
-          typing: false,
-          lastActive: Date.now()
-        })
-        .then(() => {
+          lastActive: Date.now(),
+          avatar: avatar,
+          typing: false
+        }).then(() => {
           window.location.href = "secret.html";
-        })
-        .catch((error) => {
-          console.error("Error writing to DB:", error);
-          alert("Registration failed. Try again.");
         });
       };
-
       reader.readAsDataURL(file);
     });
   </script>
